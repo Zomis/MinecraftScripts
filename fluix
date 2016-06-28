@@ -1,0 +1,20 @@
+print("Put the ingredients in slot 1, 2, and 3 in the turtle and put a chest above turtle")
+
+running = true
+
+while running do
+    if turtle.getItemCount(1) == 0 or turtle.getItemCount(2) == 0 or turtle.getItemCount(3) == 0 then
+        return
+    end
+
+    turtle.select(1)
+    turtle.drop(1)
+    turtle.select(2)
+    turtle.drop(1)
+    turtle.select(3)
+    turtle.drop(1)
+    turtle.select(4)
+    sleep(5)
+    turtle.suck()
+    turtle.dropUp()
+end
