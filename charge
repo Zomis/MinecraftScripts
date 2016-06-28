@@ -1,0 +1,10 @@
+print("Put uncharged certus quartz in Slot 1 and a chest above the turtle")
+
+while turtle.getItemCount(1) > 0 do
+    turtle.select(1)
+    turtle.drop()
+    turtle.select(2)
+    sleep(10)
+    turtle.suck()
+    turtle.dropUp()
+end
