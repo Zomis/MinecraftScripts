@@ -1,0 +1,24 @@
+local ACTIVATION_THRESHOLD = 3000000
+local DEACTIVATE_THRESHOLD = 6000000
+local SLEEP_TIME = 2
+
+print("Put in front of a reactor")
+
+local reactor = peripheral.wrap('back')
+local slept = 0
+local active = reactor.getActive()
+print("Reactor is active? " .. tostring(active))
+while true do
+    active = reactor.getActive()
+    if reactor.getEnergyStored() < ACTIVATION_THRESHOLD and not active then
+        reactor.setActive(true)
+        print("Starting reactor at " .. slept)
+        active = true
+    elseif reactor.getEnergyStored() > DEACTIVATE_THRESHOLD and active then
+        reactor.setActive(false)
+        print("Stopping reactor at " .. slept)
+        active = false
+    end
+    sleep(SLEEP_TIME)
+    slept = slept + SLEEP_TIME
+end
