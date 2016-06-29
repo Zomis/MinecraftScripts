@@ -1,0 +1,146 @@
+local what,amount=...
+
+local REFUEL_LIMIT = 1
+
+function printSleep(sleepTime, message)
+  print(message)
+  sleep(sleepTime)
+end
+
+if not what then
+  printSleep(1, "Usage:")
+  printSleep(2, "- build wall <amount>")
+  printSleep(4, "  Turtle will move forward as long as it has ground. Then it will move backwards and build a wall upwards.")
+  printSleep(4, "  Parameter amount specifies number of layers to build. If not defined it will build as long as it can.")
+  printSleep(2, "- build floor <amount>")
+  printSleep(4, "  Turtle will detect where you have placed walls and place floor everywhere it can inside your boundary.")
+  printSleep(4, "  Parameter amount specifies number of layers to add. If not defined it will default to 1.")
+  printSleep(4, "- build around <amount>")
+  printSleep(4, "  Turtle will add <amount> extra layers of wall. If parameter amount is not defined it will build as long as it can.")
+  printSleep(4, "Place materials for building from the start of the turtle inventory. Turtle will use material in the order it exists in the inventory.")
+  printSleep(4, "Place fuel for moving turtle from the end of the turtle inventory.")
+end
+
+function refuelIfNeeded()
+  if turtle.getFuelLevel() < REFUEL_LIMIT then
+    print("Attempting refuel")
+    for i=16,1,-1 do
+	  if turtle.getItemCount(i) > 0 then
+	    turtle.select(i)
+		if turtle.refuel(1) then
+		  print("Refuelled with item in slot " .. i)
+		  return true
+		else
+		  print("Unable to use item in slot " .. i .. " as fuel")
+		end
+	  end
+	end
+	return false,"No fuel found"
+  end
+  return true
+end
+
+function placeInFront()
+  for i=1,16 do
+    if turtle.getItemCount(i) > 0 then
+	  turtle.select(i)
+	  if turtle.place() then
+	    return true
+	  end
+    end
+  end
+  return false,"No item to place"
+end
+
+function moveUntilNoFloor()
+  local stepsMoved = 0
+  while turtle.inspectDown() do
+    if not refuelIfNeeded() then
+	  return false,"Unable to refuel"
+    end
+    if not turtle.forward() then
+	  return false,"Unable to move forward"
+	end
+	stepsMoved = stepsMoved + 1
+  end
+  refuelIfNeeded()
+  turtle.back()
+  return true,stepsMoved
+end
+
+function placeAndMoveBackUntilNoFloor()
+  while turtle.inspectDown() do
+    if not refuelIfNeeded then
+	  return false,"Unable to refuel"
+	end
+	if not turtle.back() then
+	  return false,"Unable to move backwards"
+	end
+	if not placeInFront() then
+	  return false,"Unable to place in front"
+	end
+  end
+  return true
+end
+
+function turnAround()
+  turtle.turnLeft()
+  turtle.turnLeft()
+end
+
+if what == "wall" then
+  if not amount then
+    print("No amount specified, defaulting to maximum")
+    amount = 20000
+  end
+  local success,stepsMoved = moveUntilNoFloor()
+  if not success then
+	message = "Failed detecting how many blocks should be built"
+	print(message)
+    return false,message
+  end
+  if stepsMoved == 0 then
+    message = "No place to build detected. One level of wall should exist below the turtle"
+	print(message)
+    return false,message
+  end
+  for i = 1,amount do
+    print("Starting building level " .. i)
+    success,message = placeAndMoveBackUntilNoFloor()
+	if not success then
+	  print(message)
+      return false,message
+    end
+	refuelIfNeeded()
+    if not turtle.up() then
+	  message = "Failed moving up"
+	  print(message)
+      return false,message
+    end
+	refuelIfNeeded()
+    if not turtle.forward() then
+	  message = "Failed moving forward after moving up"
+	  print(message)
+      return false,message
+    end
+    turnAround()
+  end
+elseif what == "floor" then
+  if not amount then
+    amount = 1
+	print("Parameter amount not specified, defaulting to 1")
+  end
+  -- This is the most complicated as we need to keep track of where the turtle is.
+  -- Creating a mental map of where we have placed stuff would help.
+elseif what == "around" then
+  if not amount then
+    amount = 20000
+  end
+  moveUntilNoFloor()
+  for i = 1,amount do
+    placeAndMoveBackUntilNoFloor()
+    turtle.up()
+    turtle.forward()
+    turnAround()
+  end
+end
