@@ -1,0 +1,2 @@
+while turtle.digDown() and turtle.down() do
+end
