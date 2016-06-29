@@ -1,0 +1,6 @@
+local args = ...
+print(args)
+local num = tonumber(args)
+for i=1,num do
+    turtle.forward()
+end
