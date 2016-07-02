@@ -24,7 +24,6 @@ map = {}
 
 function refuelIfNeeded()
     if turtle.getFuelLevel() < REFUEL_LIMIT then
-        print("Attempting refuel")
         for i=16,1,-1 do
             if turtle.getItemCount(i) > 0 then
                 turtle.select(i)
@@ -124,7 +123,6 @@ function coverPosition()
     end
     
     if map[x] == nil then
-        print("Create xx map_" .. x)
         map[x] = {}
     end
     map[x][z] = COVERED
@@ -166,16 +164,23 @@ function addXZ(x, z, direction)
     return nil
 end
 
-function addNode(parent, xz, instruction1, instruction2)
+function addNode(parent, xx, zz, direction, instruction1, instruction2)
+    local newPos = addXZ(xx, zz, direction)
+    local cost = 0
+    if parent ~= nil then
+        cost = cost + parent.cost
+    end
     local newPath = {}
     if instruction1 ~= nil then
+        cost = cost + 1
         table.insert(newPath, instruction1)
-        -- print("Add " .. instruction1 .. " to " .. newPath[1])
     end
     if instruction2 ~= nil then
+        cost = cost + 1
         table.insert(newPath, instruction2)
     end
-    return {parent = parent, x = xz.x, z = xz.z, step = newPath}
+    -- print("Add node with direction " .. direction)
+    return {parent = parent, x = newPos.x, z = newPos.z, step = newPath, cost = cost, direction = direction}
 end
 
 function getNeighbors(node, direction)
@@ -185,10 +190,10 @@ function getNeighbors(node, direction)
     local nextZ = node.z
     -- if simulated looking direction is NORTH, this means add NORTH first, then WEST, then EAST, then SOUTH
     local result = {}
-    table.insert(result, addNode(node, addXZ(nextX, nextZ, direction), nil))
-    table.insert(result, addNode(node, addXZ(nextX, nextZ, rotate(direction, ROTATE_LEFT)), "left"))
-    table.insert(result, addNode(node, addXZ(nextX, nextZ, rotate(direction, ROTATE_RIGHT)), "right"))
-    table.insert(result, addNode(node, addXZ(nextX, nextZ, rotate(direction, ROTATE_AROUND)), "left", "left"))
+    table.insert(result, addNode(node, nextX, nextZ, direction, nil))
+    table.insert(result, addNode(node, nextX, nextZ, rotate(direction, ROTATE_LEFT), "left"))
+    table.insert(result, addNode(node, nextX, nextZ, rotate(direction, ROTATE_RIGHT), "right"))
+    table.insert(result, addNode(node, nextX, nextZ, rotate(direction, ROTATE_AROUND), "left", "left"))
     return result
 end
 
@@ -250,43 +255,62 @@ function printMap()
     end
 end
 
+function findMinimumCost(list)
+    local minCost = 2147483647
+    local minNode = nil
+    local minKey = nil
+    for key, node in pairs(list) do
+        if node.cost < minCost then
+            minCost = minCost
+            minNode = node
+            minKey = key
+        end
+    end
+    return minKey, minNode
+end
+
 function findUnvisited()
     -- use pathfinding, breadth first, to identify a position that has not been COVERED
-    local queue = {}
-    local checked = {}
+    local openList = {}
+    local closedList = {}
     function node(x, z, path)
         return {x = x, z = z, path = path}
     end
-    -- add current node to queue
-    table.insert(queue, addNode(nil, {x = x, z = z}, nil))
-    local current = table.remove(queue)
-    -- while queue is not empty do:
-    --      curr = poll first item from queue
+    -- add current node to openList
+    print("Find unvisited " .. x .. ", " .. z .. " dir " .. direction)
+    table.insert(openList, {parent = nil, x = x, z = z, step = nil, cost = 0, direction = direction})
+    local index,current = findMinimumCost(openList)
+    table.remove(openList, index)
+    -- while openList is not empty do:
+    --      curr = poll first item from openList
     while current do
-        checked[tostring(current.x) .. "," .. tostring(current.z)] = true
-        print("Next in queue is " .. current.x .. ", " .. current.z)
+        closedList[tostring(current.x) .. "," .. tostring(current.z)] = true
+        print("openList check " .. current.x .. ", " .. current.z .. " cost " .. current.cost)
         sleep(1)
         -- check neighbors of curr (start with forward, then left, then right, then backward)
-        local neighbors = getNeighbors(current, direction)
+        local neighbors = getNeighbors(current, current.direction)
         for _, neighbor in ipairs(neighbors) do
-            sleep(1)
+            sleep(2)
             if map[neighbor.x][neighbor.z] == UNKNOWN then
                 -- check if `neighbor` is unvisited, if it is then return it.
                 print("Position " .. neighbor.x .. ", " .. neighbor.z .. " is unvisited.")
                 return neighbor
             elseif map[neighbor.x][neighbor.z] == COVERED then
-                -- check if `neighbor` is COVERED, then add to end of queue, with a plannedPath for how to get there
-                if not checked[tostring(neighbor.x) .. "," .. tostring(neighbor.z)] then
+                -- check if `neighbor` is COVERED, then add to end of openList, with a plannedPath for how to get there
+                if not closedList[tostring(neighbor.x) .. "," .. tostring(neighbor.z)] then
                     print("Position " .. neighbor.x .. ", " .. neighbor.z .. " is covered, scan its neighbors.")
-                    sleep(4)
-                    table.insert(queue, neighbor)
-                    checked[tostring(neighbor.x) .. "," .. tostring(neighbor.z)] = true
+                    sleep(2)
+                    table.insert(openList, neighbor)
+                    closedList[tostring(neighbor.x) .. "," .. tostring(neighbor.z)] = true
                 end
             else
-                print("Neighbor " .. neighbor.x .. ", " .. neighbor.z .. " is wall")
+                -- print("Neighbor " .. neighbor.x .. ", " .. neighbor.z .. " is wall")
             end
         end
-        current = table.remove(queue)
+        index,current = findMinimumCost(openList)
+        if current ~= nil then
+            table.remove(openList, index)
+        end
     end
     return nil
 end
@@ -333,7 +357,8 @@ while true do
         print("No more positions to check")
         return true
     else
-        print("Next position is at " .. nextPosition.x .. ", " .. nextPosition.z)
+        print("Move to " .. nextPosition.x .. ", " .. nextPosition.z)
+        sleep(2)
         local instructions = {}
         getPath(instructions, nextPosition)
         -- sleep(1)
