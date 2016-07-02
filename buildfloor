@@ -1,0 +1,350 @@
+-- building a floor
+-- Use A* pathfinding to the nearest unvisited field.
+-- turning costs 1, moving costs 1
+-- repeat until a wall has been found and all fields inside an outer wall has been checked.
+
+local UNKNOWN = 0
+local COVERED = 1
+local WALL = 2
+
+local NORTH = "north"
+local SOUTH = "south"
+local EAST = "east"
+local WEST = "west"
+local ROTATE_RIGHT = 1
+local ROTATE_AROUND = 2
+local ROTATE_LEFT = 3
+local REFUEL_LIMIT = 40
+
+-- does not necessarily have to be the actual direction the turtle is facing. Just for internal use
+local direction = NORTH
+x = 0
+z = 0
+map = {}
+
+function refuelIfNeeded()
+    if turtle.getFuelLevel() < REFUEL_LIMIT then
+        print("Attempting refuel")
+        for i=16,1,-1 do
+            if turtle.getItemCount(i) > 0 then
+                turtle.select(i)
+                if turtle.refuel(1) then
+                    print("Refuelled with item in slot " .. i)
+                    return true
+                else
+                    print("Unable to use item in slot " .. i .. " as fuel")
+                end
+            end
+        end
+        return false,"No fuel found"
+    end
+    return true
+end
+
+function placeDown()
+    for i=1,16 do
+        if turtle.getItemCount(i) > 0 then
+            turtle.select(i)
+            if turtle.placeDown() then
+                return true
+            end
+        end
+    end
+    return false,"No item to place"
+end
+
+function move()
+    local newX = x
+    local newZ = z
+    if direction == NORTH then
+        newZ = z - 1
+    elseif direction == SOUTH then
+        newZ = z + 1
+    elseif direction == EAST then
+        newX = x + 1
+    elseif direction == WEST then
+        newX = x - 1
+    else
+        print("Wrong direction: " .. direction)
+        return false,"Wrong direction " .. direction
+    end
+    if not turtle.forward() then
+        map[newX][newZ] = WALL
+        return false,"Unable to move"
+    end
+    x = newX
+    z = newZ
+    return true
+end
+
+function turnLeft()
+    turtle.turnLeft()
+    direction = rotate(direction, ROTATE_LEFT)
+end
+
+function turnRight()
+    turtle.turnRight()
+    direction = rotate(direction, ROTATE_RIGHT)
+end
+
+function markUnknown(map, x, z)
+    if not map[x] then
+        print("Something is wrong. Expected " .. x .. " to be created already")
+    end
+    if map[x][z] == nil then
+        map[x][z] = UNKNOWN
+    end
+end
+
+function detectUnknownAround(map, x, z)
+    if not map[x - 1] then
+--        print("Create -1 map_" .. (x - 1))
+        map[x - 1] = {}
+    end
+    if not map[x] then
+--        print("Create x map_" .. x)
+        map[x] = {}
+    end
+    if not map[x + 1] then
+--        print("Create +1 map_" .. (x + 1))
+        map[x + 1] = {}
+    end
+    markUnknown(map, x, z - 1)
+    markUnknown(map, x, z + 1)
+    markUnknown(map, x - 1, z)
+    markUnknown(map, x + 1, z)
+end
+
+function coverPosition()
+    -- Place below if possible
+    if not turtle.detectDown() then
+        if not placeDown() then
+            return false,"Unable to place block"
+        end
+    end
+    
+    if map[x] == nil then
+        print("Create xx map_" .. x)
+        map[x] = {}
+    end
+    map[x][z] = COVERED
+    detectUnknownAround(map, x, z)
+    return true
+end
+
+function rotate90(direction)
+    if direction == NORTH then
+        return EAST
+    elseif direction == EAST then
+        return SOUTH
+    elseif direction == SOUTH then
+        return WEST
+    elseif direction == WEST then
+        return NORTH
+    end
+end
+
+function rotate(direction, amount)
+    local result = direction
+    for i=1,amount do
+        result = rotate90(result)
+    end
+    return result
+end
+
+function addXZ(x, z, direction)
+    if direction == NORTH then
+        return {x = x, z = z - 1}
+    elseif direction == SOUTH then
+        return {x = x, z = z + 1}
+    elseif direction == EAST then
+        return {x = x + 1, z = z}
+    elseif direction == WEST then
+        return {x = x - 1, z = z}
+    end
+    print("Invalid direction: " .. direction)
+    return nil
+end
+
+function addNode(parent, xz, instruction1, instruction2)
+    local newPath = {}
+    if instruction1 ~= nil then
+        table.insert(newPath, instruction1)
+        -- print("Add " .. instruction1 .. " to " .. newPath[1])
+    end
+    if instruction2 ~= nil then
+        table.insert(newPath, instruction2)
+    end
+    return {parent = parent, x = xz.x, z = xz.z, step = newPath}
+end
+
+function getNeighbors(node, direction)
+    -- path = forward, left, forward, forward, right, forward, forward, right, forward, left...
+    -- facing = DIRECTION
+    local nextX = node.x
+    local nextZ = node.z
+    -- if simulated looking direction is NORTH, this means add NORTH first, then WEST, then EAST, then SOUTH
+    local result = {}
+    table.insert(result, addNode(node, addXZ(nextX, nextZ, direction), nil))
+    table.insert(result, addNode(node, addXZ(nextX, nextZ, rotate(direction, ROTATE_LEFT)), "left"))
+    table.insert(result, addNode(node, addXZ(nextX, nextZ, rotate(direction, ROTATE_RIGHT)), "right"))
+    table.insert(result, addNode(node, addXZ(nextX, nextZ, rotate(direction, ROTATE_AROUND)), "left", "left"))
+    return result
+end
+
+function charFor(map, xx, zz)
+    if xx == 0 and zz == 0 then
+        return "0"
+    end
+    if xx == x and zz == z then
+        if direction == NORTH then
+            return "^"
+        elseif direction == EAST then
+            return ">"
+        elseif direction == SOUTH then
+            return "v"
+        elseif direction == WEST then
+            return "<"
+        end
+    end
+    if map[xx][zz] == COVERED then
+        return "x"
+    end
+    if map[xx][zz] == WALL then
+        return "#"
+    end
+    if map[xx][zz] == UNKNOWN then
+        return "?"
+    end
+    return "."
+end
+
+function printMap()
+    local minX = 0
+    local maxX = 0
+    local minZ = 0
+    local maxZ = 0
+    for xx, mapX in pairs(map) do
+        if xx < minX then
+            minX = xx
+        end
+        if xx > maxX then
+            maxX = xx
+        end
+        for zz, _ in pairs(mapX) do
+            if zz < minZ then
+                minZ = zz
+            end
+            if zz > maxZ then
+                maxZ = zz
+            end
+        end
+    end
+    print("Map range (" .. minX .. ".." .. maxX .. "), (" .. minZ .. ".." .. maxZ .. ")")
+    for zz = minZ, maxZ do
+        local row = ""
+        for xx = minX, maxX do
+            row = row .. charFor(map, xx, zz)
+        end
+        print(row)
+    end
+end
+
+function findUnvisited()
+    -- use pathfinding, breadth first, to identify a position that has not been COVERED
+    local queue = {}
+    local checked = {}
+    function node(x, z, path)
+        return {x = x, z = z, path = path}
+    end
+    -- add current node to queue
+    table.insert(queue, addNode(nil, {x = x, z = z}, nil))
+    local current = table.remove(queue)
+    -- while queue is not empty do:
+    --      curr = poll first item from queue
+    while current do
+        checked[tostring(current.x) .. "," .. tostring(current.z)] = true
+        print("Next in queue is " .. current.x .. ", " .. current.z)
+        sleep(1)
+        -- check neighbors of curr (start with forward, then left, then right, then backward)
+        local neighbors = getNeighbors(current, direction)
+        for _, neighbor in ipairs(neighbors) do
+            sleep(1)
+            if map[neighbor.x][neighbor.z] == UNKNOWN then
+                -- check if `neighbor` is unvisited, if it is then return it.
+                print("Position " .. neighbor.x .. ", " .. neighbor.z .. " is unvisited.")
+                return neighbor
+            elseif map[neighbor.x][neighbor.z] == COVERED then
+                -- check if `neighbor` is COVERED, then add to end of queue, with a plannedPath for how to get there
+                if not checked[tostring(neighbor.x) .. "," .. tostring(neighbor.z)] then
+                    print("Position " .. neighbor.x .. ", " .. neighbor.z .. " is covered, scan its neighbors.")
+                    sleep(4)
+                    table.insert(queue, neighbor)
+                    checked[tostring(neighbor.x) .. "," .. tostring(neighbor.z)] = true
+                end
+            else
+                print("Neighbor " .. neighbor.x .. ", " .. neighbor.z .. " is wall")
+            end
+        end
+        current = table.remove(queue)
+    end
+    return nil
+end
+
+function getPath(result, goal)
+    if goal.parent ~= nil then
+        getPath(result, goal.parent)
+    end
+    local currentSteps = goal.step
+    if currentSteps ~= nil then
+        for _, instruction in ipairs(goal.step) do
+            table.insert(result, instruction)
+        end
+    end
+    if goal.parent ~= nil then
+        table.insert(result, "forward")
+    end
+end
+
+function moveInstructions(path)
+    for _, instruction in ipairs(path) do
+        if instruction == "left" then
+            turnLeft()
+        elseif instruction == "right" then
+            turnRight()
+        elseif instruction == "forward" then
+            refuelIfNeeded()
+            move()
+        end
+    end
+end
+
+built = 0
+while true do
+    print("Current position is at " .. x .. ", " .. z)
+    -- sleep(3)
+    built = built + 1
+    if not coverPosition() then
+        print("Unable to cover current position")
+        return false
+    end
+    local nextPosition = findUnvisited()
+    if nextPosition == nil then
+        print("No more positions to check")
+        return true
+    else
+        print("Next position is at " .. nextPosition.x .. ", " .. nextPosition.z)
+        local instructions = {}
+        getPath(instructions, nextPosition)
+        -- sleep(1)
+        print("Planned path:")
+        local pathPlan = ""
+        for _, instruction in ipairs(instructions) do
+            pathPlan = pathPlan .. instruction .. ", "
+        end
+        print(pathPlan)
+        printMap()
+        
+        moveInstructions(instructions)
+    end
+end
