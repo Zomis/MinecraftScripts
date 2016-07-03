@@ -171,7 +171,7 @@ end
 
 function addNode(parent, xx, zz, direction, instruction1, instruction2)
     local newPos = addXZ(xx, zz, direction)
-    local cost = 0
+    local cost = 1
     if parent ~= nil then
         cost = cost + parent.cost
     end
