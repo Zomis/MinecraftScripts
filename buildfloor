@@ -270,7 +270,7 @@ function findMinimumCost(list)
     local minKey = nil
     for key, node in pairs(list) do
         if node.cost < minCost then
-            minCost = minCost
+            minCost = node.cost
             minNode = node
             minKey = key
         end
