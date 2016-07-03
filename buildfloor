@@ -286,11 +286,9 @@ function findUnvisited()
     while current do
         closedList[tostring(current.x) .. "," .. tostring(current.z)] = true
         print("openList check " .. current.x .. ", " .. current.z .. " cost " .. current.cost)
-        sleep(1)
         -- check neighbors of curr (start with forward, then left, then right, then backward)
         local neighbors = getNeighbors(current, current.direction)
         for _, neighbor in ipairs(neighbors) do
-            sleep(2)
             if map[neighbor.x][neighbor.z] == UNKNOWN then
                 -- check if `neighbor` is unvisited, if it is then return it.
                 print("Position " .. neighbor.x .. ", " .. neighbor.z .. " is unvisited.")
@@ -299,7 +297,6 @@ function findUnvisited()
                 -- check if `neighbor` is COVERED, then add to end of openList, with a plannedPath for how to get there
                 if not closedList[tostring(neighbor.x) .. "," .. tostring(neighbor.z)] then
                     print("Position " .. neighbor.x .. ", " .. neighbor.z .. " is covered, scan its neighbors.")
-                    sleep(2)
                     table.insert(openList, neighbor)
                     closedList[tostring(neighbor.x) .. "," .. tostring(neighbor.z)] = true
                 end
@@ -346,7 +343,6 @@ end
 built = 0
 while true do
     print("Current position is at " .. x .. ", " .. z)
-    -- sleep(3)
     built = built + 1
     if not coverPosition() then
         print("Unable to cover current position")
@@ -358,10 +354,8 @@ while true do
         return true
     else
         print("Move to " .. nextPosition.x .. ", " .. nextPosition.z)
-        sleep(2)
         local instructions = {}
         getPath(instructions, nextPosition)
-        -- sleep(1)
         print("Planned path:")
         local pathPlan = ""
         for _, instruction in ipairs(instructions) do
