@@ -310,7 +310,6 @@ function findUnvisited()
     --      curr = poll first item from openList
     while current do
         closedList[tostring(current.x) .. "," .. tostring(current.z)] = true
-        print("openList check " .. current.x .. ", " .. current.z .. " cost " .. current.cost)
         -- check neighbors of curr (start with forward, then left, then right, then backward)
         local neighbors = getNeighbors(current, current.direction)
         for _, neighbor in ipairs(neighbors) do
