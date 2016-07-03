@@ -218,7 +218,7 @@ function charFor(map, xx, zz)
         end
     end
     if map[xx][zz] == COVERED then
-        return "x"
+        return "."
     end
     if map[xx][zz] == WALL then
         return "#"
@@ -226,7 +226,7 @@ function charFor(map, xx, zz)
     if map[xx][zz] == UNKNOWN then
         return "?"
     end
-    return "."
+    return " "
 end
 
 function printMap(markX, markZ)
