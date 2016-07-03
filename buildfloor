@@ -279,6 +279,22 @@ function findMinimumCost(list)
 end
 
 function findUnvisited()
+    function insertIfCheaper(openList, node)
+        for key, existing in pairs(openList) do
+            if existing.x == node.x and existing.z == node.z then
+                -- Only one node for each position exists in list
+                if node.cost < existing.cost then
+                    existing.cost = node.cost
+                    existing.parent = node.parent
+                    existing.step = node.step
+                    existing.direction = node.direction
+                    -- {parent = parent, x = newPos.x, z = newPos.z, step = newPath, cost = cost, direction = direction}
+                end
+                return
+            end
+        end
+        table.insert(openList, node)
+    end
     -- use pathfinding, breadth first, to identify a position that has not been COVERED
     local openList = {}
     local closedList = {}
@@ -287,7 +303,7 @@ function findUnvisited()
     end
     -- add current node to openList
     print("Find unvisited " .. x .. ", " .. z .. " dir " .. direction)
-    table.insert(openList, {parent = nil, x = x, z = z, step = nil, cost = 0, direction = direction})
+    insertIfCheaper(openList, {parent = nil, x = x, z = z, step = nil, cost = 0, direction = direction})
     local index,current = findMinimumCost(openList)
     table.remove(openList, index)
     -- while openList is not empty do:
@@ -305,9 +321,9 @@ function findUnvisited()
             elseif map[neighbor.x][neighbor.z] == COVERED then
                 -- check if `neighbor` is COVERED, then add to end of openList, with a plannedPath for how to get there
                 if not closedList[tostring(neighbor.x) .. "," .. tostring(neighbor.z)] then
-                    print("Position " .. neighbor.x .. ", " .. neighbor.z .. " is covered, scan its neighbors.")
-                    table.insert(openList, neighbor)
-                    closedList[tostring(neighbor.x) .. "," .. tostring(neighbor.z)] = true
+                    -- print("Position " .. neighbor.x .. ", " .. neighbor.z .. " is covered, scan its neighbors.")
+                    insertIfCheaper(openList, neighbor)
+                    -- closedList[tostring(neighbor.x) .. "," .. tostring(neighbor.z)] = true
                 end
             else
                 -- print("Neighbor " .. neighbor.x .. ", " .. neighbor.z .. " is wall")
