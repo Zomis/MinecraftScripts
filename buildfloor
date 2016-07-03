@@ -21,6 +21,8 @@ local direction = NORTH
 x = 0
 z = 0
 map = {}
+turnsMade = 0
+movesMade = 0
 
 function refuelIfNeeded()
     if turtle.getFuelLevel() < REFUEL_LIMIT then
@@ -73,16 +75,19 @@ function move()
     end
     x = newX
     z = newZ
+    movesMade = movesMade + 1
     return true
 end
 
 function turnLeft()
     turtle.turnLeft()
+    turnsMade = turnsMade + 1
     direction = rotate(direction, ROTATE_LEFT)
 end
 
 function turnRight()
     turtle.turnRight()
+    turnsMade = turnsMade + 1
     direction = rotate(direction, ROTATE_RIGHT)
 end
 
@@ -224,7 +229,7 @@ function charFor(map, xx, zz)
     return "."
 end
 
-function printMap()
+function printMap(markX, markZ)
     local minX = 0
     local maxX = 0
     local minZ = 0
@@ -249,7 +254,11 @@ function printMap()
     for zz = minZ, maxZ do
         local row = ""
         for xx = minX, maxX do
-            row = row .. charFor(map, xx, zz)
+            if markX == xx and markZ == zz then
+                row = row .. "*"
+            else
+                row = row .. charFor(map, xx, zz)
+            end
         end
         print(row)
     end
@@ -351,6 +360,9 @@ while true do
     local nextPosition = findUnvisited()
     if nextPosition == nil then
         print("No more positions to check")
+        print("Turns " .. turnsMade .. ". Moves " .. movesMade)
+        sleep(10)
+        printMap()
         return true
     else
         print("Move to " .. nextPosition.x .. ", " .. nextPosition.z)
@@ -362,8 +374,9 @@ while true do
             pathPlan = pathPlan .. instruction .. ", "
         end
         print(pathPlan)
-        printMap()
+        printMap(nextPosition.x, nextPosition.z)
         
         moveInstructions(instructions)
     end
+    print("Turns " .. turnsMade .. ". Moves " .. movesMade)
 end
